@@ -1,0 +1,2485 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Lab 2: Building a Modeling Data Set"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import os\n",
+    "import pandas as pd\n",
+    "import numpy as np\n",
+    "%matplotlib inline\n",
+    "import matplotlib.pyplot as plt \n",
+    "import seaborn as sns\n",
+    "sns.set_theme()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "In this lab, you will complete the following tasks to <b>build a modeling data set</b>:\n",
+    "\n",
+    "1. <b>Load the Airbnb \"listings\" data set</b> and identify the <b>number of rows & columns</b>\n",
+    "2. <b>Remove features</b> that are not currently useful for analysis; <br>\n",
+    "<b>Modify features</b> to make sure they are machine-comprehensible\n",
+    "3. Build a new regression <b>label column</b> by winsorizing outliers\n",
+    "4. Replace all <b>missing values</b> with means\n",
+    "5. <b>Identify</b> two features with the <b>highest correlation with the label</b>\n",
+    "6. Build appropriate <b>bivariate plots</b> between the highest correlated features and the label\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Part 1. Load the Data"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "We will once again be working with the Airbnb NYC \"listings\" data set. Use the specified path and name of the file to load the data. Save it as a Pandas DataFrame called `df`."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Do not remove or edit the line below:\n",
+    "filename = os.path.join(os.getcwd(), \"data\", \"listings.csv.gz\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Task**: load the data and save it to DataFrame `df`."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "/usr/local/lib/python3.6/dist-packages/IPython/core/interactiveshell.py:2728: DtypeWarning: Columns (67) have mixed types.Specify dtype option on import or set low_memory=False.\n",
+      "  interactivity=interactivity, compiler=compiler, result=result)\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Load the data into a DataFrame\n",
+    "df = pd.read_csv(filename, compression='gzip')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "<b>Task</b>: Display the shape of `df` -- that is, the number of rows and columns."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "(38277, 74)\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(df.shape)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Task**: Get a peek at the data by displaying the first few rows, as you usually do."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>id</th>\n",
+       "      <th>listing_url</th>\n",
+       "      <th>scrape_id</th>\n",
+       "      <th>last_scraped</th>\n",
+       "      <th>name</th>\n",
+       "      <th>description</th>\n",
+       "      <th>neighborhood_overview</th>\n",
+       "      <th>picture_url</th>\n",
+       "      <th>host_id</th>\n",
+       "      <th>host_url</th>\n",
+       "      <th>...</th>\n",
+       "      <th>review_scores_communication</th>\n",
+       "      <th>review_scores_location</th>\n",
+       "      <th>review_scores_value</th>\n",
+       "      <th>license</th>\n",
+       "      <th>instant_bookable</th>\n",
+       "      <th>calculated_host_listings_count</th>\n",
+       "      <th>calculated_host_listings_count_entire_homes</th>\n",
+       "      <th>calculated_host_listings_count_private_rooms</th>\n",
+       "      <th>calculated_host_listings_count_shared_rooms</th>\n",
+       "      <th>reviews_per_month</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>2595</td>\n",
+       "      <td>https://www.airbnb.com/rooms/2595</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>Skylit Midtown Castle</td>\n",
+       "      <td>Beautiful, spacious skylit studio in the heart...</td>\n",
+       "      <td>Centrally located in the heart of Manhattan ju...</td>\n",
+       "      <td>https://a0.muscache.com/pictures/f0813a11-40b2...</td>\n",
+       "      <td>2845</td>\n",
+       "      <td>https://www.airbnb.com/users/show/2845</td>\n",
+       "      <td>...</td>\n",
+       "      <td>4.79</td>\n",
+       "      <td>4.86</td>\n",
+       "      <td>4.41</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>f</td>\n",
+       "      <td>3</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.33</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>3831</td>\n",
+       "      <td>https://www.airbnb.com/rooms/3831</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>Whole flr w/private bdrm, bath &amp; kitchen(pls r...</td>\n",
+       "      <td>Enjoy 500 s.f. top floor in 1899 brownstone, w...</td>\n",
+       "      <td>Just the right mix of urban center and local n...</td>\n",
+       "      <td>https://a0.muscache.com/pictures/e49999c2-9fd5...</td>\n",
+       "      <td>4869</td>\n",
+       "      <td>https://www.airbnb.com/users/show/4869</td>\n",
+       "      <td>...</td>\n",
+       "      <td>4.80</td>\n",
+       "      <td>4.71</td>\n",
+       "      <td>4.64</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>f</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>4.86</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>5121</td>\n",
+       "      <td>https://www.airbnb.com/rooms/5121</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>BlissArtsSpace!</td>\n",
+       "      <td>&lt;b&gt;The space&lt;/b&gt;&lt;br /&gt;HELLO EVERYONE AND THANK...</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>https://a0.muscache.com/pictures/2090980c-b68e...</td>\n",
+       "      <td>7356</td>\n",
+       "      <td>https://www.airbnb.com/users/show/7356</td>\n",
+       "      <td>...</td>\n",
+       "      <td>4.91</td>\n",
+       "      <td>4.47</td>\n",
+       "      <td>4.52</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>f</td>\n",
+       "      <td>2</td>\n",
+       "      <td>0</td>\n",
+       "      <td>2</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.52</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>5136</td>\n",
+       "      <td>https://www.airbnb.com/rooms/5136</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>Spacious Brooklyn Duplex, Patio + Garden</td>\n",
+       "      <td>We welcome you to stay in our lovely 2 br dupl...</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>https://a0.muscache.com/pictures/miso/Hosting-...</td>\n",
+       "      <td>7378</td>\n",
+       "      <td>https://www.airbnb.com/users/show/7378</td>\n",
+       "      <td>...</td>\n",
+       "      <td>5.00</td>\n",
+       "      <td>4.50</td>\n",
+       "      <td>5.00</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>f</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.02</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>5178</td>\n",
+       "      <td>https://www.airbnb.com/rooms/5178</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>Large Furnished Room Near B'way</td>\n",
+       "      <td>Please don’t expect the luxury here just a bas...</td>\n",
+       "      <td>Theater district, many restaurants around here.</td>\n",
+       "      <td>https://a0.muscache.com/pictures/12065/f070997...</td>\n",
+       "      <td>8967</td>\n",
+       "      <td>https://www.airbnb.com/users/show/8967</td>\n",
+       "      <td>...</td>\n",
+       "      <td>4.42</td>\n",
+       "      <td>4.87</td>\n",
+       "      <td>4.36</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>f</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3.68</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>5</th>\n",
+       "      <td>5203</td>\n",
+       "      <td>https://www.airbnb.com/rooms/5203</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>Cozy Clean Guest Room - Family Apt</td>\n",
+       "      <td>Our best guests are seeking a safe, clean, spa...</td>\n",
+       "      <td>Our neighborhood is full of restaurants and ca...</td>\n",
+       "      <td>https://a0.muscache.com/pictures/103776/b37157...</td>\n",
+       "      <td>7490</td>\n",
+       "      <td>https://www.airbnb.com/users/show/7490</td>\n",
+       "      <td>...</td>\n",
+       "      <td>4.95</td>\n",
+       "      <td>4.94</td>\n",
+       "      <td>4.92</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>f</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.87</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>6</th>\n",
+       "      <td>5803</td>\n",
+       "      <td>https://www.airbnb.com/rooms/5803</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>Lovely Room 1, Garden, Best Area, Legal rental</td>\n",
+       "      <td>Beautiful house, gorgeous garden, patio, cozy ...</td>\n",
+       "      <td>Neighborhood is amazing!&lt;br /&gt;Best subways to ...</td>\n",
+       "      <td>https://a0.muscache.com/pictures/2884180/f19a1...</td>\n",
+       "      <td>9744</td>\n",
+       "      <td>https://www.airbnb.com/users/show/9744</td>\n",
+       "      <td>...</td>\n",
+       "      <td>4.82</td>\n",
+       "      <td>4.87</td>\n",
+       "      <td>4.73</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>f</td>\n",
+       "      <td>3</td>\n",
+       "      <td>1</td>\n",
+       "      <td>2</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1.48</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>7</th>\n",
+       "      <td>6848</td>\n",
+       "      <td>https://www.airbnb.com/rooms/6848</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>Only 2 stops to Manhattan studio</td>\n",
+       "      <td>Comfortable studio apartment with super comfor...</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>https://a0.muscache.com/pictures/e4f031a7-f146...</td>\n",
+       "      <td>15991</td>\n",
+       "      <td>https://www.airbnb.com/users/show/15991</td>\n",
+       "      <td>...</td>\n",
+       "      <td>4.80</td>\n",
+       "      <td>4.67</td>\n",
+       "      <td>4.57</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>t</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1.24</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>8</th>\n",
+       "      <td>6872</td>\n",
+       "      <td>https://www.airbnb.com/rooms/6872</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>Uptown Sanctuary w/ Private Bath (Month to Month)</td>\n",
+       "      <td>A charming month-to-month home away from home ...</td>\n",
+       "      <td>This sweet Harlem sanctuary is a 10-20 minute ...</td>\n",
+       "      <td>https://a0.muscache.com/pictures/miso/Hosting-...</td>\n",
+       "      <td>16104</td>\n",
+       "      <td>https://www.airbnb.com/users/show/16104</td>\n",
+       "      <td>...</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>f</td>\n",
+       "      <td>2</td>\n",
+       "      <td>0</td>\n",
+       "      <td>2</td>\n",
+       "      <td>0</td>\n",
+       "      <td>NaN</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>9</th>\n",
+       "      <td>6990</td>\n",
+       "      <td>https://www.airbnb.com/rooms/6990</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>UES Beautiful Blue Room</td>\n",
+       "      <td>Beautiful peaceful healthy home&lt;br /&gt;&lt;br /&gt;&lt;b&gt;...</td>\n",
+       "      <td>Location: Five minutes to Central Park, Museum...</td>\n",
+       "      <td>https://a0.muscache.com/pictures/be6cd5b3-9295...</td>\n",
+       "      <td>16800</td>\n",
+       "      <td>https://www.airbnb.com/users/show/16800</td>\n",
+       "      <td>...</td>\n",
+       "      <td>4.95</td>\n",
+       "      <td>4.84</td>\n",
+       "      <td>4.84</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>t</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1.82</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "<p>10 rows × 74 columns</p>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "     id                        listing_url       scrape_id last_scraped  \\\n",
+       "0  2595  https://www.airbnb.com/rooms/2595  20211204143024   2021-12-05   \n",
+       "1  3831  https://www.airbnb.com/rooms/3831  20211204143024   2021-12-05   \n",
+       "2  5121  https://www.airbnb.com/rooms/5121  20211204143024   2021-12-05   \n",
+       "3  5136  https://www.airbnb.com/rooms/5136  20211204143024   2021-12-05   \n",
+       "4  5178  https://www.airbnb.com/rooms/5178  20211204143024   2021-12-05   \n",
+       "5  5203  https://www.airbnb.com/rooms/5203  20211204143024   2021-12-05   \n",
+       "6  5803  https://www.airbnb.com/rooms/5803  20211204143024   2021-12-05   \n",
+       "7  6848  https://www.airbnb.com/rooms/6848  20211204143024   2021-12-05   \n",
+       "8  6872  https://www.airbnb.com/rooms/6872  20211204143024   2021-12-05   \n",
+       "9  6990  https://www.airbnb.com/rooms/6990  20211204143024   2021-12-05   \n",
+       "\n",
+       "                                                name  \\\n",
+       "0                              Skylit Midtown Castle   \n",
+       "1  Whole flr w/private bdrm, bath & kitchen(pls r...   \n",
+       "2                                    BlissArtsSpace!   \n",
+       "3           Spacious Brooklyn Duplex, Patio + Garden   \n",
+       "4                   Large Furnished Room Near B'way　   \n",
+       "5                 Cozy Clean Guest Room - Family Apt   \n",
+       "6     Lovely Room 1, Garden, Best Area, Legal rental   \n",
+       "7                   Only 2 stops to Manhattan studio   \n",
+       "8  Uptown Sanctuary w/ Private Bath (Month to Month)   \n",
+       "9                            UES Beautiful Blue Room   \n",
+       "\n",
+       "                                         description  \\\n",
+       "0  Beautiful, spacious skylit studio in the heart...   \n",
+       "1  Enjoy 500 s.f. top floor in 1899 brownstone, w...   \n",
+       "2  <b>The space</b><br />HELLO EVERYONE AND THANK...   \n",
+       "3  We welcome you to stay in our lovely 2 br dupl...   \n",
+       "4  Please don’t expect the luxury here just a bas...   \n",
+       "5  Our best guests are seeking a safe, clean, spa...   \n",
+       "6  Beautiful house, gorgeous garden, patio, cozy ...   \n",
+       "7  Comfortable studio apartment with super comfor...   \n",
+       "8  A charming month-to-month home away from home ...   \n",
+       "9  Beautiful peaceful healthy home<br /><br /><b>...   \n",
+       "\n",
+       "                               neighborhood_overview  \\\n",
+       "0  Centrally located in the heart of Manhattan ju...   \n",
+       "1  Just the right mix of urban center and local n...   \n",
+       "2                                                NaN   \n",
+       "3                                                NaN   \n",
+       "4    Theater district, many restaurants around here.   \n",
+       "5  Our neighborhood is full of restaurants and ca...   \n",
+       "6  Neighborhood is amazing!<br />Best subways to ...   \n",
+       "7                                                NaN   \n",
+       "8  This sweet Harlem sanctuary is a 10-20 minute ...   \n",
+       "9  Location: Five minutes to Central Park, Museum...   \n",
+       "\n",
+       "                                         picture_url  host_id  \\\n",
+       "0  https://a0.muscache.com/pictures/f0813a11-40b2...     2845   \n",
+       "1  https://a0.muscache.com/pictures/e49999c2-9fd5...     4869   \n",
+       "2  https://a0.muscache.com/pictures/2090980c-b68e...     7356   \n",
+       "3  https://a0.muscache.com/pictures/miso/Hosting-...     7378   \n",
+       "4  https://a0.muscache.com/pictures/12065/f070997...     8967   \n",
+       "5  https://a0.muscache.com/pictures/103776/b37157...     7490   \n",
+       "6  https://a0.muscache.com/pictures/2884180/f19a1...     9744   \n",
+       "7  https://a0.muscache.com/pictures/e4f031a7-f146...    15991   \n",
+       "8  https://a0.muscache.com/pictures/miso/Hosting-...    16104   \n",
+       "9  https://a0.muscache.com/pictures/be6cd5b3-9295...    16800   \n",
+       "\n",
+       "                                  host_url  ... review_scores_communication  \\\n",
+       "0   https://www.airbnb.com/users/show/2845  ...                        4.79   \n",
+       "1   https://www.airbnb.com/users/show/4869  ...                        4.80   \n",
+       "2   https://www.airbnb.com/users/show/7356  ...                        4.91   \n",
+       "3   https://www.airbnb.com/users/show/7378  ...                        5.00   \n",
+       "4   https://www.airbnb.com/users/show/8967  ...                        4.42   \n",
+       "5   https://www.airbnb.com/users/show/7490  ...                        4.95   \n",
+       "6   https://www.airbnb.com/users/show/9744  ...                        4.82   \n",
+       "7  https://www.airbnb.com/users/show/15991  ...                        4.80   \n",
+       "8  https://www.airbnb.com/users/show/16104  ...                         NaN   \n",
+       "9  https://www.airbnb.com/users/show/16800  ...                        4.95   \n",
+       "\n",
+       "  review_scores_location review_scores_value license instant_bookable  \\\n",
+       "0                   4.86                4.41     NaN                f   \n",
+       "1                   4.71                4.64     NaN                f   \n",
+       "2                   4.47                4.52     NaN                f   \n",
+       "3                   4.50                5.00     NaN                f   \n",
+       "4                   4.87                4.36     NaN                f   \n",
+       "5                   4.94                4.92     NaN                f   \n",
+       "6                   4.87                4.73     NaN                f   \n",
+       "7                   4.67                4.57     NaN                t   \n",
+       "8                    NaN                 NaN     NaN                f   \n",
+       "9                   4.84                4.84     NaN                t   \n",
+       "\n",
+       "  calculated_host_listings_count calculated_host_listings_count_entire_homes  \\\n",
+       "0                              3                                           3   \n",
+       "1                              1                                           1   \n",
+       "2                              2                                           0   \n",
+       "3                              1                                           1   \n",
+       "4                              1                                           0   \n",
+       "5                              1                                           0   \n",
+       "6                              3                                           1   \n",
+       "7                              1                                           1   \n",
+       "8                              2                                           0   \n",
+       "9                              1                                           0   \n",
+       "\n",
+       "  calculated_host_listings_count_private_rooms  \\\n",
+       "0                                            0   \n",
+       "1                                            0   \n",
+       "2                                            2   \n",
+       "3                                            0   \n",
+       "4                                            1   \n",
+       "5                                            1   \n",
+       "6                                            2   \n",
+       "7                                            0   \n",
+       "8                                            2   \n",
+       "9                                            1   \n",
+       "\n",
+       "  calculated_host_listings_count_shared_rooms reviews_per_month  \n",
+       "0                                           0              0.33  \n",
+       "1                                           0              4.86  \n",
+       "2                                           0              0.52  \n",
+       "3                                           0              0.02  \n",
+       "4                                           0              3.68  \n",
+       "5                                           0              0.87  \n",
+       "6                                           0              1.48  \n",
+       "7                                           0              1.24  \n",
+       "8                                           0               NaN  \n",
+       "9                                           0              1.82  \n",
+       "\n",
+       "[10 rows x 74 columns]"
+      ]
+     },
+     "execution_count": 6,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df.head(10)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Part 2. Feature Selection and Engineering"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "We won't need the data fields that contain free, unstructured text. For example, we wont need the columns that contain apartment descriptions supplied by the host, customer reviews, or descriptions of the neighborhoods in which a listing is located."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "The code cell below contains a list containing the names of *unstructured text* columns.<br>\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "unstr_text_colnames = ['description', 'name', 'neighborhood_overview', 'host_about', 'host_name', 'host_location']"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Task**: Drop the columns with the specified names, *in place* (that is, make sure this change applies to the original DataFrame `df`, instead of creating a temporary new DataFrame with fewer columns)."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "unstr_text_colnames = ['description', 'name', 'neighborhood_overview', 'host_about', 'host_name', 'host_location']\n",
+    "\n",
+    "# Find the common column names between unstr_text_colnames and DataFrame columns\n",
+    "common_columns = list(set(df.columns) & set(unstr_text_colnames))\n",
+    "\n",
+    "# Drop the common columns from the DataFrame in place\n",
+    "df.drop(columns=common_columns, inplace=True)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Task**: Display the shape of the data to verify that the new number of columns is what you expected."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "(38277, 68)\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Display the shape of the DataFrame\n",
+    "print(df.shape)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "We will furthermore get rid of all the columns which contain website addresses (URLs).<br>\n",
+    "\n",
+    "**Task**: Create a list which contains the names of columns that contain URLs.<br> Save the resulting list to variable `url_colnames`.\n",
+    "\n",
+    "*Tip*: There are different ways to accomplish this, including using Python list comprehensions"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import re\n",
+    "\n",
+    "# Regular expression pattern to match URLs\n",
+    "url_pattern = r'(https?://\\S+)'\n",
+    "\n",
+    "# Create a list of column names that contain URLs\n",
+    "url_colnames = [col for col in df.columns if df[col].apply(lambda x: re.search(url_pattern, str(x)) is not None).any()]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Task**: Drop the columns with the specified names contained in list `url_colnames` in place (that is, make sure this change applies to the original DataFrame `df`, instead of creating a temporary new DataFrame object with fewer columns)."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df.drop(columns=url_colnames, inplace=True)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Task**: Another property of this dataset is that the `price` column contains values that are listed as <br>$<$currency_name$>$$<$numeric_value$>$. For example, it contains values that look like this: `$120`. <br>\n",
+    "\n",
+    "Let's look at the first 15 unique values of this column.<br>\n",
+    "\n",
+    "Display the first 15 unique values of  the `price` column:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "['$150.00' '$75.00' '$60.00' '$275.00' '$68.00' '$98.00' '$89.00' '$65.00'\n",
+      " '$62.00' '$90.00' '$199.00' '$96.00' '$299.00' '$140.00' '$175.00']\n"
+     ]
+    }
+   ],
+   "source": [
+    "unique_prices = df['price'].unique()[:15]\n",
+    "print(unique_prices)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "In order for us to use the prices for modeling, we will have to transform all values of this `price` feature into regular floats.<br>\n",
+    "We will first need to remove the dollar signs (in this case, the platform forces the currency to be the USD, so we do not need to worry about targeting, say, the Japanese Yen sign, nor about converting the values into USD). Furthermore, we need to remove commas from all values that are in the thousands or above: for example, `$2,500$`. Here is how to do both:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "metadata": {
+    "scrolled": false
+   },
+   "outputs": [],
+   "source": [
+    "df['price'] = df['price'].str.replace(',', '')\n",
+    "df['price'] = df['price'].str.replace('$', '')\n",
+    "df['price'] = df['price'].astype(float)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Let's display the first few unique values again, to make sure they are transformed:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "array([150.,  75.,  60., 275.,  68.,  98.,  89.,  65.,  62.,  90., 199.,\n",
+       "        96., 299., 140., 175.])"
+      ]
+     },
+     "execution_count": 14,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df['price'].unique()[:15]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Well done! Our transformed dataset looks like this:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>id</th>\n",
+       "      <th>scrape_id</th>\n",
+       "      <th>last_scraped</th>\n",
+       "      <th>host_id</th>\n",
+       "      <th>host_since</th>\n",
+       "      <th>host_response_time</th>\n",
+       "      <th>host_response_rate</th>\n",
+       "      <th>host_acceptance_rate</th>\n",
+       "      <th>host_is_superhost</th>\n",
+       "      <th>host_neighbourhood</th>\n",
+       "      <th>...</th>\n",
+       "      <th>review_scores_communication</th>\n",
+       "      <th>review_scores_location</th>\n",
+       "      <th>review_scores_value</th>\n",
+       "      <th>license</th>\n",
+       "      <th>instant_bookable</th>\n",
+       "      <th>calculated_host_listings_count</th>\n",
+       "      <th>calculated_host_listings_count_entire_homes</th>\n",
+       "      <th>calculated_host_listings_count_private_rooms</th>\n",
+       "      <th>calculated_host_listings_count_shared_rooms</th>\n",
+       "      <th>reviews_per_month</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>2595</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>2845</td>\n",
+       "      <td>2008-09-09</td>\n",
+       "      <td>within a day</td>\n",
+       "      <td>80%</td>\n",
+       "      <td>17%</td>\n",
+       "      <td>f</td>\n",
+       "      <td>Midtown</td>\n",
+       "      <td>...</td>\n",
+       "      <td>4.79</td>\n",
+       "      <td>4.86</td>\n",
+       "      <td>4.41</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>f</td>\n",
+       "      <td>3</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.33</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>3831</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>4869</td>\n",
+       "      <td>2008-12-07</td>\n",
+       "      <td>a few days or more</td>\n",
+       "      <td>9%</td>\n",
+       "      <td>69%</td>\n",
+       "      <td>f</td>\n",
+       "      <td>Clinton Hill</td>\n",
+       "      <td>...</td>\n",
+       "      <td>4.80</td>\n",
+       "      <td>4.71</td>\n",
+       "      <td>4.64</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>f</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>4.86</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>5121</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>7356</td>\n",
+       "      <td>2009-02-03</td>\n",
+       "      <td>within an hour</td>\n",
+       "      <td>100%</td>\n",
+       "      <td>100%</td>\n",
+       "      <td>f</td>\n",
+       "      <td>Bedford-Stuyvesant</td>\n",
+       "      <td>...</td>\n",
+       "      <td>4.91</td>\n",
+       "      <td>4.47</td>\n",
+       "      <td>4.52</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>f</td>\n",
+       "      <td>2</td>\n",
+       "      <td>0</td>\n",
+       "      <td>2</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.52</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>5136</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>7378</td>\n",
+       "      <td>2009-02-03</td>\n",
+       "      <td>within a day</td>\n",
+       "      <td>100%</td>\n",
+       "      <td>25%</td>\n",
+       "      <td>f</td>\n",
+       "      <td>Greenwood Heights</td>\n",
+       "      <td>...</td>\n",
+       "      <td>5.00</td>\n",
+       "      <td>4.50</td>\n",
+       "      <td>5.00</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>f</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.02</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>5178</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>8967</td>\n",
+       "      <td>2009-03-03</td>\n",
+       "      <td>within a day</td>\n",
+       "      <td>100%</td>\n",
+       "      <td>100%</td>\n",
+       "      <td>f</td>\n",
+       "      <td>Hell's Kitchen</td>\n",
+       "      <td>...</td>\n",
+       "      <td>4.42</td>\n",
+       "      <td>4.87</td>\n",
+       "      <td>4.36</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>f</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3.68</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "<p>5 rows × 63 columns</p>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "     id       scrape_id last_scraped  host_id  host_since  host_response_time  \\\n",
+       "0  2595  20211204143024   2021-12-05     2845  2008-09-09        within a day   \n",
+       "1  3831  20211204143024   2021-12-05     4869  2008-12-07  a few days or more   \n",
+       "2  5121  20211204143024   2021-12-05     7356  2009-02-03      within an hour   \n",
+       "3  5136  20211204143024   2021-12-05     7378  2009-02-03        within a day   \n",
+       "4  5178  20211204143024   2021-12-05     8967  2009-03-03        within a day   \n",
+       "\n",
+       "  host_response_rate host_acceptance_rate host_is_superhost  \\\n",
+       "0                80%                  17%                 f   \n",
+       "1                 9%                  69%                 f   \n",
+       "2               100%                 100%                 f   \n",
+       "3               100%                  25%                 f   \n",
+       "4               100%                 100%                 f   \n",
+       "\n",
+       "   host_neighbourhood  ...  review_scores_communication  \\\n",
+       "0             Midtown  ...                         4.79   \n",
+       "1        Clinton Hill  ...                         4.80   \n",
+       "2  Bedford-Stuyvesant  ...                         4.91   \n",
+       "3   Greenwood Heights  ...                         5.00   \n",
+       "4      Hell's Kitchen  ...                         4.42   \n",
+       "\n",
+       "   review_scores_location review_scores_value license instant_bookable  \\\n",
+       "0                    4.86                4.41     NaN                f   \n",
+       "1                    4.71                4.64     NaN                f   \n",
+       "2                    4.47                4.52     NaN                f   \n",
+       "3                    4.50                5.00     NaN                f   \n",
+       "4                    4.87                4.36     NaN                f   \n",
+       "\n",
+       "  calculated_host_listings_count calculated_host_listings_count_entire_homes  \\\n",
+       "0                              3                                           3   \n",
+       "1                              1                                           1   \n",
+       "2                              2                                           0   \n",
+       "3                              1                                           1   \n",
+       "4                              1                                           0   \n",
+       "\n",
+       "  calculated_host_listings_count_private_rooms  \\\n",
+       "0                                            0   \n",
+       "1                                            0   \n",
+       "2                                            2   \n",
+       "3                                            0   \n",
+       "4                                            1   \n",
+       "\n",
+       "   calculated_host_listings_count_shared_rooms  reviews_per_month  \n",
+       "0                                            0               0.33  \n",
+       "1                                            0               4.86  \n",
+       "2                                            0               0.52  \n",
+       "3                                            0               0.02  \n",
+       "4                                            0               3.68  \n",
+       "\n",
+       "[5 rows x 63 columns]"
+      ]
+     },
+     "execution_count": 15,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df.head()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "collapsed": true
+   },
+   "source": [
+    "## Part 3. Create a (Winsorized) Label Column"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Assume that your goal is to use this dataset to fit a regression model that predicts the price under which a given space is listed."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Task**: Create a new version of the `price` column, named `label_price`, in which we replace the top and bottom 1% outlier values with the corresponding percentile value. Add this new column to the DataFrame `df`."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Remember, you will first need to load the `stats` module from the `scipy` package:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import scipy.stats as stats"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "lower_percentile = np.percentile(df['price'], 1)\n",
+    "higher_percentile = np.percentile(df['price'], 99)\n",
+    "\n",
+    "# Replace outlier values with corresponding percentiles and add \"label_price\" column\n",
+    "df['label_price'] = df['price'].apply(lambda x: x if lower_percentile <= x <= higher_percentile else df['price'].median())\n",
+    "\n",
+    "lower_percentile = df['price'].quantile(0.01)\n",
+    "higher_percentile = df['price'].quantile(0.99)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Let's verify that a new column got added to the DataFrame:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>id</th>\n",
+       "      <th>scrape_id</th>\n",
+       "      <th>last_scraped</th>\n",
+       "      <th>host_id</th>\n",
+       "      <th>host_since</th>\n",
+       "      <th>host_response_time</th>\n",
+       "      <th>host_response_rate</th>\n",
+       "      <th>host_acceptance_rate</th>\n",
+       "      <th>host_is_superhost</th>\n",
+       "      <th>host_neighbourhood</th>\n",
+       "      <th>...</th>\n",
+       "      <th>review_scores_location</th>\n",
+       "      <th>review_scores_value</th>\n",
+       "      <th>license</th>\n",
+       "      <th>instant_bookable</th>\n",
+       "      <th>calculated_host_listings_count</th>\n",
+       "      <th>calculated_host_listings_count_entire_homes</th>\n",
+       "      <th>calculated_host_listings_count_private_rooms</th>\n",
+       "      <th>calculated_host_listings_count_shared_rooms</th>\n",
+       "      <th>reviews_per_month</th>\n",
+       "      <th>label_price</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>2595</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>2845</td>\n",
+       "      <td>2008-09-09</td>\n",
+       "      <td>within a day</td>\n",
+       "      <td>80%</td>\n",
+       "      <td>17%</td>\n",
+       "      <td>f</td>\n",
+       "      <td>Midtown</td>\n",
+       "      <td>...</td>\n",
+       "      <td>4.86</td>\n",
+       "      <td>4.41</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>f</td>\n",
+       "      <td>3</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.33</td>\n",
+       "      <td>150.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>3831</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>4869</td>\n",
+       "      <td>2008-12-07</td>\n",
+       "      <td>a few days or more</td>\n",
+       "      <td>9%</td>\n",
+       "      <td>69%</td>\n",
+       "      <td>f</td>\n",
+       "      <td>Clinton Hill</td>\n",
+       "      <td>...</td>\n",
+       "      <td>4.71</td>\n",
+       "      <td>4.64</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>f</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>4.86</td>\n",
+       "      <td>75.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>5121</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>7356</td>\n",
+       "      <td>2009-02-03</td>\n",
+       "      <td>within an hour</td>\n",
+       "      <td>100%</td>\n",
+       "      <td>100%</td>\n",
+       "      <td>f</td>\n",
+       "      <td>Bedford-Stuyvesant</td>\n",
+       "      <td>...</td>\n",
+       "      <td>4.47</td>\n",
+       "      <td>4.52</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>f</td>\n",
+       "      <td>2</td>\n",
+       "      <td>0</td>\n",
+       "      <td>2</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.52</td>\n",
+       "      <td>60.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>5136</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>7378</td>\n",
+       "      <td>2009-02-03</td>\n",
+       "      <td>within a day</td>\n",
+       "      <td>100%</td>\n",
+       "      <td>25%</td>\n",
+       "      <td>f</td>\n",
+       "      <td>Greenwood Heights</td>\n",
+       "      <td>...</td>\n",
+       "      <td>4.50</td>\n",
+       "      <td>5.00</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>f</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.02</td>\n",
+       "      <td>275.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>5178</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>8967</td>\n",
+       "      <td>2009-03-03</td>\n",
+       "      <td>within a day</td>\n",
+       "      <td>100%</td>\n",
+       "      <td>100%</td>\n",
+       "      <td>f</td>\n",
+       "      <td>Hell's Kitchen</td>\n",
+       "      <td>...</td>\n",
+       "      <td>4.87</td>\n",
+       "      <td>4.36</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>f</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3.68</td>\n",
+       "      <td>68.0</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "<p>5 rows × 64 columns</p>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "     id       scrape_id last_scraped  host_id  host_since  host_response_time  \\\n",
+       "0  2595  20211204143024   2021-12-05     2845  2008-09-09        within a day   \n",
+       "1  3831  20211204143024   2021-12-05     4869  2008-12-07  a few days or more   \n",
+       "2  5121  20211204143024   2021-12-05     7356  2009-02-03      within an hour   \n",
+       "3  5136  20211204143024   2021-12-05     7378  2009-02-03        within a day   \n",
+       "4  5178  20211204143024   2021-12-05     8967  2009-03-03        within a day   \n",
+       "\n",
+       "  host_response_rate host_acceptance_rate host_is_superhost  \\\n",
+       "0                80%                  17%                 f   \n",
+       "1                 9%                  69%                 f   \n",
+       "2               100%                 100%                 f   \n",
+       "3               100%                  25%                 f   \n",
+       "4               100%                 100%                 f   \n",
+       "\n",
+       "   host_neighbourhood  ...  review_scores_location  review_scores_value  \\\n",
+       "0             Midtown  ...                    4.86                 4.41   \n",
+       "1        Clinton Hill  ...                    4.71                 4.64   \n",
+       "2  Bedford-Stuyvesant  ...                    4.47                 4.52   \n",
+       "3   Greenwood Heights  ...                    4.50                 5.00   \n",
+       "4      Hell's Kitchen  ...                    4.87                 4.36   \n",
+       "\n",
+       "  license instant_bookable calculated_host_listings_count  \\\n",
+       "0     NaN                f                              3   \n",
+       "1     NaN                f                              1   \n",
+       "2     NaN                f                              2   \n",
+       "3     NaN                f                              1   \n",
+       "4     NaN                f                              1   \n",
+       "\n",
+       "  calculated_host_listings_count_entire_homes  \\\n",
+       "0                                           3   \n",
+       "1                                           1   \n",
+       "2                                           0   \n",
+       "3                                           1   \n",
+       "4                                           0   \n",
+       "\n",
+       "  calculated_host_listings_count_private_rooms  \\\n",
+       "0                                            0   \n",
+       "1                                            0   \n",
+       "2                                            2   \n",
+       "3                                            0   \n",
+       "4                                            1   \n",
+       "\n",
+       "  calculated_host_listings_count_shared_rooms  reviews_per_month  label_price  \n",
+       "0                                           0               0.33        150.0  \n",
+       "1                                           0               4.86         75.0  \n",
+       "2                                           0               0.52         60.0  \n",
+       "3                                           0               0.02        275.0  \n",
+       "4                                           0               3.68         68.0  \n",
+       "\n",
+       "[5 rows x 64 columns]"
+      ]
+     },
+     "execution_count": 20,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df.head()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Task**: Check that the values of `price` and `label_price` are *not* identical. Do this by subtracting the two columns and printing the *length* of the array (using the `len()` function) of *unique values* of the resulting difference. <br>Note: If all values are identical, the difference would contain only one unique value -- zero. If this is the case, outlier removal did not work."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 21,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "206\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Calcultae the difference between \"price\" and \"label_price\" columns\n",
+    "price_diff = df['price'] - df['label_price']\n",
+    "\n",
+    "#Create label_price \n",
+    "\n",
+    "#Count the number of unique values in the difference\n",
+    "unique_diff_values = len(price_diff.unique())\n",
+    "\n",
+    "# Print the number of unique values in the difference\n",
+    "print(unique_diff_values)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Part 4. Replace the Missing Values With Means"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### a. Identifying missingness"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Task**: Check if a given value in any data cell is missing, and sum up the resulting values (`True`/`False`) by columns. Save this sum to variable `nan_count`. Print the results."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 26,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "id                                                 0\n",
+      "scrape_id                                          0\n",
+      "last_scraped                                       0\n",
+      "host_id                                            0\n",
+      "host_since                                        34\n",
+      "                                                ... \n",
+      "calculated_host_listings_count_entire_homes        0\n",
+      "calculated_host_listings_count_private_rooms       0\n",
+      "calculated_host_listings_count_shared_rooms        0\n",
+      "reviews_per_month                               9504\n",
+      "label_price                                        0\n",
+      "Length: 64, dtype: int64\n"
+     ]
+    }
+   ],
+   "source": [
+    "#Checking\n",
+    "nan_count = df.isna().sum()\n",
+    "\n",
+    "# Print the results\n",
+    "print(nan_count)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Those are more columns than we can eyeball! For this exercise, we don't care about the number of missing values -- we just want to get a list of columns that have *any*. <br>\n",
+    "\n",
+    "<b>Task</b>: From variable `nan_count`, create a new series called `nan_detected` that contains `True`/`False` values that indicate whether the number of missing values is *not zero*:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 27,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "id                                              False\n",
+      "scrape_id                                       False\n",
+      "last_scraped                                    False\n",
+      "host_id                                         False\n",
+      "host_since                                       True\n",
+      "                                                ...  \n",
+      "calculated_host_listings_count_entire_homes     False\n",
+      "calculated_host_listings_count_private_rooms    False\n",
+      "calculated_host_listings_count_shared_rooms     False\n",
+      "reviews_per_month                                True\n",
+      "label_price                                     False\n",
+      "Length: 64, dtype: bool\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Create the nan series\n",
+    "nan_detected = nan_count != 0 \n",
+    "\n",
+    "# Print the nan_detected series\n",
+    "print (nan_detected)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Since replacing the missing values with the mean only makes sense for the numerically valued columns (and not for strings, for example), let us create another condition: the *type* of the column must be `int` or `float`."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Task**: Create a series that contains `True` if the type of the column is either `int64` or `float64`. Save the result to variable `is_int_or_float`."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 30,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "id                                               True\n",
+      "scrape_id                                        True\n",
+      "last_scraped                                    False\n",
+      "host_id                                          True\n",
+      "host_since                                      False\n",
+      "                                                ...  \n",
+      "calculated_host_listings_count_entire_homes      True\n",
+      "calculated_host_listings_count_private_rooms     True\n",
+      "calculated_host_listings_count_shared_rooms      True\n",
+      "reviews_per_month                               False\n",
+      "label_price                                     False\n",
+      "Length: 64, dtype: bool\n"
+     ]
+    }
+   ],
+   "source": [
+    "# create\n",
+    "is_int_or_float = df.dtypes.isin([np.int64, np.float64])\n",
+    "\n",
+    "#Print series\n",
+    "print (is_int_or_float)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "<b>Task</b>: Combine the two binary series values into a new series named `to_impute`. It will contain the value `True` if a column contains missing values *and* is of type 'int' or 'float'"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 31,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "id                                              False\n",
+      "scrape_id                                       False\n",
+      "last_scraped                                    False\n",
+      "host_id                                         False\n",
+      "host_since                                      False\n",
+      "                                                ...  \n",
+      "calculated_host_listings_count_entire_homes     False\n",
+      "calculated_host_listings_count_private_rooms    False\n",
+      "calculated_host_listings_count_shared_rooms     False\n",
+      "reviews_per_month                               False\n",
+      "label_price                                     False\n",
+      "Length: 64, dtype: bool\n"
+     ]
+    }
+   ],
+   "source": [
+    "#Combines both series\n",
+    "to_impute =  nan_detected & is_int_or_float\n",
+    "print (to_impute)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Finally, let's display a list that contains just the selected column names:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 32,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "Index([], dtype='object')"
+      ]
+     },
+     "execution_count": 32,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df.columns[to_impute]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "We just identified and displayed the list of candidate columns for potentially replacing missing values with the column mean."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Assume that you have decided that it is safe to impute the values for `host_listings_count`, `host_total_listings_count`, `bathrooms`, `bedrooms`, and `beds`:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 33,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "to_impute_selected = ['host_listings_count', 'host_total_listings_count', 'bathrooms',\n",
+    "       'bedrooms', 'beds']"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### b. Keeping record of the missingness: creating dummy variables "
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "As a first step, you will now create dummy variables indicating missingness of the values."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Task**: Store the `True`/`False` series that indicate missingness of any value in a given column as a new variable called<br> `<original-column-name>_na`. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 48,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "to_impute_selected = ['host_listings_count', 'host_total_listings_count', 'bathrooms',\n",
+    "       'bedrooms', 'beds']\n",
+    "\n",
+    "for colname in to_impute_selected:\n",
+    "    na_series = df[colname].isna()\n",
+    "    new_variable_name = colname + \"_na\"\n",
+    "    df[new_variable_name] = na_series\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Check that the DataFrame contains the new variables:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 49,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>id</th>\n",
+       "      <th>scrape_id</th>\n",
+       "      <th>last_scraped</th>\n",
+       "      <th>host_id</th>\n",
+       "      <th>host_since</th>\n",
+       "      <th>host_response_time</th>\n",
+       "      <th>host_response_rate</th>\n",
+       "      <th>host_acceptance_rate</th>\n",
+       "      <th>host_is_superhost</th>\n",
+       "      <th>host_neighbourhood</th>\n",
+       "      <th>...</th>\n",
+       "      <th>calculated_host_listings_count_entire_homes</th>\n",
+       "      <th>calculated_host_listings_count_private_rooms</th>\n",
+       "      <th>calculated_host_listings_count_shared_rooms</th>\n",
+       "      <th>reviews_per_month</th>\n",
+       "      <th>label_price</th>\n",
+       "      <th>host_listings_count_na</th>\n",
+       "      <th>host_total_listings_count_na</th>\n",
+       "      <th>bathrooms_na</th>\n",
+       "      <th>bedrooms_na</th>\n",
+       "      <th>beds_na</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>2595</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>2845</td>\n",
+       "      <td>2008-09-09</td>\n",
+       "      <td>within a day</td>\n",
+       "      <td>80%</td>\n",
+       "      <td>17%</td>\n",
+       "      <td>f</td>\n",
+       "      <td>Midtown</td>\n",
+       "      <td>...</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.33</td>\n",
+       "      <td>150.0</td>\n",
+       "      <td>False</td>\n",
+       "      <td>False</td>\n",
+       "      <td>True</td>\n",
+       "      <td>True</td>\n",
+       "      <td>False</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>3831</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>4869</td>\n",
+       "      <td>2008-12-07</td>\n",
+       "      <td>a few days or more</td>\n",
+       "      <td>9%</td>\n",
+       "      <td>69%</td>\n",
+       "      <td>f</td>\n",
+       "      <td>Clinton Hill</td>\n",
+       "      <td>...</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>4.86</td>\n",
+       "      <td>75.0</td>\n",
+       "      <td>False</td>\n",
+       "      <td>False</td>\n",
+       "      <td>True</td>\n",
+       "      <td>False</td>\n",
+       "      <td>False</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>5121</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>7356</td>\n",
+       "      <td>2009-02-03</td>\n",
+       "      <td>within an hour</td>\n",
+       "      <td>100%</td>\n",
+       "      <td>100%</td>\n",
+       "      <td>f</td>\n",
+       "      <td>Bedford-Stuyvesant</td>\n",
+       "      <td>...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>2</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.52</td>\n",
+       "      <td>60.0</td>\n",
+       "      <td>False</td>\n",
+       "      <td>False</td>\n",
+       "      <td>True</td>\n",
+       "      <td>False</td>\n",
+       "      <td>False</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>5136</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>7378</td>\n",
+       "      <td>2009-02-03</td>\n",
+       "      <td>within a day</td>\n",
+       "      <td>100%</td>\n",
+       "      <td>25%</td>\n",
+       "      <td>f</td>\n",
+       "      <td>Greenwood Heights</td>\n",
+       "      <td>...</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.02</td>\n",
+       "      <td>275.0</td>\n",
+       "      <td>False</td>\n",
+       "      <td>False</td>\n",
+       "      <td>True</td>\n",
+       "      <td>False</td>\n",
+       "      <td>False</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>5178</td>\n",
+       "      <td>20211204143024</td>\n",
+       "      <td>2021-12-05</td>\n",
+       "      <td>8967</td>\n",
+       "      <td>2009-03-03</td>\n",
+       "      <td>within a day</td>\n",
+       "      <td>100%</td>\n",
+       "      <td>100%</td>\n",
+       "      <td>f</td>\n",
+       "      <td>Hell's Kitchen</td>\n",
+       "      <td>...</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>3.68</td>\n",
+       "      <td>68.0</td>\n",
+       "      <td>False</td>\n",
+       "      <td>False</td>\n",
+       "      <td>True</td>\n",
+       "      <td>False</td>\n",
+       "      <td>False</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "<p>5 rows × 69 columns</p>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "     id       scrape_id last_scraped  host_id  host_since  host_response_time  \\\n",
+       "0  2595  20211204143024   2021-12-05     2845  2008-09-09        within a day   \n",
+       "1  3831  20211204143024   2021-12-05     4869  2008-12-07  a few days or more   \n",
+       "2  5121  20211204143024   2021-12-05     7356  2009-02-03      within an hour   \n",
+       "3  5136  20211204143024   2021-12-05     7378  2009-02-03        within a day   \n",
+       "4  5178  20211204143024   2021-12-05     8967  2009-03-03        within a day   \n",
+       "\n",
+       "  host_response_rate host_acceptance_rate host_is_superhost  \\\n",
+       "0                80%                  17%                 f   \n",
+       "1                 9%                  69%                 f   \n",
+       "2               100%                 100%                 f   \n",
+       "3               100%                  25%                 f   \n",
+       "4               100%                 100%                 f   \n",
+       "\n",
+       "   host_neighbourhood  ...  calculated_host_listings_count_entire_homes  \\\n",
+       "0             Midtown  ...                                            3   \n",
+       "1        Clinton Hill  ...                                            1   \n",
+       "2  Bedford-Stuyvesant  ...                                            0   \n",
+       "3   Greenwood Heights  ...                                            1   \n",
+       "4      Hell's Kitchen  ...                                            0   \n",
+       "\n",
+       "   calculated_host_listings_count_private_rooms  \\\n",
+       "0                                             0   \n",
+       "1                                             0   \n",
+       "2                                             2   \n",
+       "3                                             0   \n",
+       "4                                             1   \n",
+       "\n",
+       "  calculated_host_listings_count_shared_rooms reviews_per_month label_price  \\\n",
+       "0                                           0              0.33       150.0   \n",
+       "1                                           0              4.86        75.0   \n",
+       "2                                           0              0.52        60.0   \n",
+       "3                                           0              0.02       275.0   \n",
+       "4                                           0              3.68        68.0   \n",
+       "\n",
+       "  host_listings_count_na host_total_listings_count_na bathrooms_na  \\\n",
+       "0                  False                        False         True   \n",
+       "1                  False                        False         True   \n",
+       "2                  False                        False         True   \n",
+       "3                  False                        False         True   \n",
+       "4                  False                        False         True   \n",
+       "\n",
+       "   bedrooms_na  beds_na  \n",
+       "0         True    False  \n",
+       "1        False    False  \n",
+       "2        False    False  \n",
+       "3        False    False  \n",
+       "4        False    False  \n",
+       "\n",
+       "[5 rows x 69 columns]"
+      ]
+     },
+     "execution_count": 49,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df.head()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### c. Replacing the missing values with mean values of the column"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Task**: Fill the missing values of the selected few columns with the corresponding mean value."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 50,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "to_impute_selected = ['host_listings_count', 'host_total_listings_count', 'bathrooms',\n",
+    "       'bedrooms', 'beds']\n",
+    "\n",
+    "for colname in to_impute_selected:\n",
+    "    na_series = df[colname].isna()\n",
+    "    new_variable_name = colname + \"_na\"\n",
+    "    df = df.assign(**{new_variable_name: na_series})\n",
+    "\n",
+    "    mean_value = df[colname].mean()\n",
+    "    df[colname].fillna(mean_value, inplace=True)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Check your results below. The code displays the count of missing values for each of the selected columns. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 51,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "host_listings_count missing values count :0\n",
+      "host_total_listings_count missing values count :0\n",
+      "bathrooms missing values count :38277\n",
+      "bedrooms missing values count :0\n",
+      "beds missing values count :0\n"
+     ]
+    }
+   ],
+   "source": [
+    "for colname in to_impute_selected:\n",
+    "    print(\"{} missing values count :{}\".format(colname, np.sum(df[colname].isnull(), axis = 0)))\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Why did the `bathrooms` column retain missing values after our imputation?"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Task**: List the unique values of the `bathrooms` column."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 54,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Calculates the mean value of the \"bathrooms\" column\n",
+    "mean_bathrooms = df['bathrooms'].mean()\n",
+    "\n",
+    "# Impute missing values in column with the mean\n",
+    "df['bathrooms'].fillna(mean_bathrooms, inplace=True)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "The column did not contain a single value (except the `NaN` indicator) to begin with."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Part 5. Identify Features With the Highest Correlation With the Label"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Your next goal is to figure out which features in the data correlate most with the label.<br>\n",
+    "\n",
+    "In the next few cells, we will demonstrate how to use the Pandas `corr()` method to get a list of correlation coefficients between `label` and all other (numerical) features."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Let's first glance at what the `corr()` method does:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 55,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>id</th>\n",
+       "      <th>scrape_id</th>\n",
+       "      <th>host_id</th>\n",
+       "      <th>host_listings_count</th>\n",
+       "      <th>host_total_listings_count</th>\n",
+       "      <th>latitude</th>\n",
+       "      <th>longitude</th>\n",
+       "      <th>accommodates</th>\n",
+       "      <th>bathrooms</th>\n",
+       "      <th>bedrooms</th>\n",
+       "      <th>...</th>\n",
+       "      <th>calculated_host_listings_count_entire_homes</th>\n",
+       "      <th>calculated_host_listings_count_private_rooms</th>\n",
+       "      <th>calculated_host_listings_count_shared_rooms</th>\n",
+       "      <th>reviews_per_month</th>\n",
+       "      <th>label_price</th>\n",
+       "      <th>host_listings_count_na</th>\n",
+       "      <th>host_total_listings_count_na</th>\n",
+       "      <th>bathrooms_na</th>\n",
+       "      <th>bedrooms_na</th>\n",
+       "      <th>beds_na</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>id</th>\n",
+       "      <td>1.000000e+00</td>\n",
+       "      <td>-4.269620e-13</td>\n",
+       "      <td>5.861676e-01</td>\n",
+       "      <td>1.298621e-01</td>\n",
+       "      <td>1.298621e-01</td>\n",
+       "      <td>1.000083e-02</td>\n",
+       "      <td>8.708041e-02</td>\n",
+       "      <td>3.540148e-02</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>4.502641e-02</td>\n",
+       "      <td>...</td>\n",
+       "      <td>1.371325e-01</td>\n",
+       "      <td>2.118813e-01</td>\n",
+       "      <td>4.671123e-02</td>\n",
+       "      <td>2.316854e-01</td>\n",
+       "      <td>8.080259e-02</td>\n",
+       "      <td>-8.301146e-03</td>\n",
+       "      <td>-8.301146e-03</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>3.342643e-02</td>\n",
+       "      <td>1.363999e-01</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>scrape_id</th>\n",
+       "      <td>-4.269620e-13</td>\n",
+       "      <td>1.000000e+00</td>\n",
+       "      <td>2.367225e-13</td>\n",
+       "      <td>-2.061273e-14</td>\n",
+       "      <td>-2.061273e-14</td>\n",
+       "      <td>7.448373e-13</td>\n",
+       "      <td>-1.544987e-11</td>\n",
+       "      <td>1.251408e-14</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>1.094740e-13</td>\n",
+       "      <td>...</td>\n",
+       "      <td>2.212092e-14</td>\n",
+       "      <td>-4.315383e-14</td>\n",
+       "      <td>-9.152507e-15</td>\n",
+       "      <td>5.899236e-15</td>\n",
+       "      <td>-2.986486e-14</td>\n",
+       "      <td>-3.883529e-15</td>\n",
+       "      <td>-3.883529e-15</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>1.922869e-15</td>\n",
+       "      <td>-4.177378e-14</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>host_id</th>\n",
+       "      <td>5.861676e-01</td>\n",
+       "      <td>2.367225e-13</td>\n",
+       "      <td>1.000000e+00</td>\n",
+       "      <td>3.189206e-02</td>\n",
+       "      <td>3.189206e-02</td>\n",
+       "      <td>4.148254e-02</td>\n",
+       "      <td>1.162017e-01</td>\n",
+       "      <td>2.722884e-02</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>2.201904e-02</td>\n",
+       "      <td>...</td>\n",
+       "      <td>2.524284e-02</td>\n",
+       "      <td>1.931984e-01</td>\n",
+       "      <td>7.830736e-02</td>\n",
+       "      <td>2.084392e-01</td>\n",
+       "      <td>4.383930e-02</td>\n",
+       "      <td>-3.707217e-03</td>\n",
+       "      <td>-3.707217e-03</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>3.354441e-02</td>\n",
+       "      <td>9.217727e-02</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>host_listings_count</th>\n",
+       "      <td>1.298621e-01</td>\n",
+       "      <td>-2.061273e-14</td>\n",
+       "      <td>3.189206e-02</td>\n",
+       "      <td>1.000000e+00</td>\n",
+       "      <td>1.000000e+00</td>\n",
+       "      <td>3.475008e-02</td>\n",
+       "      <td>-8.842627e-02</td>\n",
+       "      <td>-2.620826e-02</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>-1.709828e-02</td>\n",
+       "      <td>...</td>\n",
+       "      <td>5.418772e-01</td>\n",
+       "      <td>1.491464e-01</td>\n",
+       "      <td>-1.594956e-02</td>\n",
+       "      <td>-2.095984e-02</td>\n",
+       "      <td>1.214021e-01</td>\n",
+       "      <td>-1.234737e-15</td>\n",
+       "      <td>-1.234737e-15</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>1.296648e-02</td>\n",
+       "      <td>-1.032184e-02</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>host_total_listings_count</th>\n",
+       "      <td>1.298621e-01</td>\n",
+       "      <td>-2.061273e-14</td>\n",
+       "      <td>3.189206e-02</td>\n",
+       "      <td>1.000000e+00</td>\n",
+       "      <td>1.000000e+00</td>\n",
+       "      <td>3.475008e-02</td>\n",
+       "      <td>-8.842627e-02</td>\n",
+       "      <td>-2.620826e-02</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>-1.709828e-02</td>\n",
+       "      <td>...</td>\n",
+       "      <td>5.418772e-01</td>\n",
+       "      <td>1.491464e-01</td>\n",
+       "      <td>-1.594956e-02</td>\n",
+       "      <td>-2.095984e-02</td>\n",
+       "      <td>1.214021e-01</td>\n",
+       "      <td>-1.234737e-15</td>\n",
+       "      <td>-1.234737e-15</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>1.296648e-02</td>\n",
+       "      <td>-1.032184e-02</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "<p>5 rows × 46 columns</p>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                                     id     scrape_id       host_id  \\\n",
+       "id                         1.000000e+00 -4.269620e-13  5.861676e-01   \n",
+       "scrape_id                 -4.269620e-13  1.000000e+00  2.367225e-13   \n",
+       "host_id                    5.861676e-01  2.367225e-13  1.000000e+00   \n",
+       "host_listings_count        1.298621e-01 -2.061273e-14  3.189206e-02   \n",
+       "host_total_listings_count  1.298621e-01 -2.061273e-14  3.189206e-02   \n",
+       "\n",
+       "                           host_listings_count  host_total_listings_count  \\\n",
+       "id                                1.298621e-01               1.298621e-01   \n",
+       "scrape_id                        -2.061273e-14              -2.061273e-14   \n",
+       "host_id                           3.189206e-02               3.189206e-02   \n",
+       "host_listings_count               1.000000e+00               1.000000e+00   \n",
+       "host_total_listings_count         1.000000e+00               1.000000e+00   \n",
+       "\n",
+       "                               latitude     longitude  accommodates  \\\n",
+       "id                         1.000083e-02  8.708041e-02  3.540148e-02   \n",
+       "scrape_id                  7.448373e-13 -1.544987e-11  1.251408e-14   \n",
+       "host_id                    4.148254e-02  1.162017e-01  2.722884e-02   \n",
+       "host_listings_count        3.475008e-02 -8.842627e-02 -2.620826e-02   \n",
+       "host_total_listings_count  3.475008e-02 -8.842627e-02 -2.620826e-02   \n",
+       "\n",
+       "                           bathrooms      bedrooms  ...  \\\n",
+       "id                               NaN  4.502641e-02  ...   \n",
+       "scrape_id                        NaN  1.094740e-13  ...   \n",
+       "host_id                          NaN  2.201904e-02  ...   \n",
+       "host_listings_count              NaN -1.709828e-02  ...   \n",
+       "host_total_listings_count        NaN -1.709828e-02  ...   \n",
+       "\n",
+       "                           calculated_host_listings_count_entire_homes  \\\n",
+       "id                                                        1.371325e-01   \n",
+       "scrape_id                                                 2.212092e-14   \n",
+       "host_id                                                   2.524284e-02   \n",
+       "host_listings_count                                       5.418772e-01   \n",
+       "host_total_listings_count                                 5.418772e-01   \n",
+       "\n",
+       "                           calculated_host_listings_count_private_rooms  \\\n",
+       "id                                                         2.118813e-01   \n",
+       "scrape_id                                                 -4.315383e-14   \n",
+       "host_id                                                    1.931984e-01   \n",
+       "host_listings_count                                        1.491464e-01   \n",
+       "host_total_listings_count                                  1.491464e-01   \n",
+       "\n",
+       "                           calculated_host_listings_count_shared_rooms  \\\n",
+       "id                                                        4.671123e-02   \n",
+       "scrape_id                                                -9.152507e-15   \n",
+       "host_id                                                   7.830736e-02   \n",
+       "host_listings_count                                      -1.594956e-02   \n",
+       "host_total_listings_count                                -1.594956e-02   \n",
+       "\n",
+       "                           reviews_per_month   label_price  \\\n",
+       "id                              2.316854e-01  8.080259e-02   \n",
+       "scrape_id                       5.899236e-15 -2.986486e-14   \n",
+       "host_id                         2.084392e-01  4.383930e-02   \n",
+       "host_listings_count            -2.095984e-02  1.214021e-01   \n",
+       "host_total_listings_count      -2.095984e-02  1.214021e-01   \n",
+       "\n",
+       "                           host_listings_count_na  \\\n",
+       "id                                  -8.301146e-03   \n",
+       "scrape_id                           -3.883529e-15   \n",
+       "host_id                             -3.707217e-03   \n",
+       "host_listings_count                 -1.234737e-15   \n",
+       "host_total_listings_count           -1.234737e-15   \n",
+       "\n",
+       "                           host_total_listings_count_na  bathrooms_na  \\\n",
+       "id                                        -8.301146e-03           NaN   \n",
+       "scrape_id                                 -3.883529e-15           NaN   \n",
+       "host_id                                   -3.707217e-03           NaN   \n",
+       "host_listings_count                       -1.234737e-15           NaN   \n",
+       "host_total_listings_count                 -1.234737e-15           NaN   \n",
+       "\n",
+       "                            bedrooms_na       beds_na  \n",
+       "id                         3.342643e-02  1.363999e-01  \n",
+       "scrape_id                  1.922869e-15 -4.177378e-14  \n",
+       "host_id                    3.354441e-02  9.217727e-02  \n",
+       "host_listings_count        1.296648e-02 -1.032184e-02  \n",
+       "host_total_listings_count  1.296648e-02 -1.032184e-02  \n",
+       "\n",
+       "[5 rows x 46 columns]"
+      ]
+     },
+     "execution_count": 55,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df.corr().head()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "The result is a computed *correlation matrix*. The values on the diagonal are all equal to 1, and the matrix is symmetrical with respect to the diagonal (note that we are only printing the first five lines of it).<br>\n",
+    "\n",
+    "We only need to observe correlations of all features with *the label* (as opposed to every possible pairwise correlation). <br>\n",
+    "\n",
+    "**Task**: Save the `label_price` column of the correlation matrix to the variable `corrs`:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 57,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "id                                              8.080259e-02\n",
+       "scrape_id                                      -2.986486e-14\n",
+       "host_id                                         4.383930e-02\n",
+       "host_listings_count                             1.214021e-01\n",
+       "host_total_listings_count                       1.214021e-01\n",
+       "latitude                                        4.144356e-02\n",
+       "longitude                                      -2.174799e-01\n",
+       "accommodates                                    4.567693e-01\n",
+       "bathrooms                                                NaN\n",
+       "bedrooms                                        3.871941e-01\n",
+       "beds                                            3.491702e-01\n",
+       "price                                           4.151821e-01\n",
+       "minimum_nights                                 -8.487379e-02\n",
+       "maximum_nights                                 -8.547491e-04\n",
+       "minimum_minimum_nights                         -4.059951e-02\n",
+       "maximum_minimum_nights                          8.308448e-02\n",
+       "minimum_maximum_nights                          7.193547e-02\n",
+       "maximum_maximum_nights                          1.159843e-01\n",
+       "minimum_nights_avg_ntm                          8.120704e-02\n",
+       "maximum_nights_avg_ntm                          8.962585e-02\n",
+       "calendar_updated                                         NaN\n",
+       "availability_30                                 1.102041e-01\n",
+       "availability_60                                 1.197597e-01\n",
+       "availability_90                                 1.202222e-01\n",
+       "availability_365                                1.089187e-01\n",
+       "number_of_reviews                              -3.442796e-02\n",
+       "number_of_reviews_ltm                           4.364161e-02\n",
+       "number_of_reviews_l30d                          3.548744e-02\n",
+       "review_scores_rating                            4.399071e-02\n",
+       "review_scores_accuracy                          5.042863e-03\n",
+       "review_scores_cleanliness                       8.583939e-02\n",
+       "review_scores_checkin                           1.094522e-03\n",
+       "review_scores_communication                     1.496457e-03\n",
+       "review_scores_location                          1.002204e-01\n",
+       "review_scores_value                            -5.950169e-03\n",
+       "calculated_host_listings_count                 -7.193395e-03\n",
+       "calculated_host_listings_count_entire_homes     1.198544e-01\n",
+       "calculated_host_listings_count_private_rooms   -1.080117e-01\n",
+       "calculated_host_listings_count_shared_rooms    -5.368728e-02\n",
+       "reviews_per_month                               4.121350e-02\n",
+       "label_price                                     1.000000e+00\n",
+       "host_listings_count_na                          5.442214e-02\n",
+       "host_total_listings_count_na                    5.442214e-02\n",
+       "bathrooms_na                                             NaN\n",
+       "bedrooms_na                                     3.936667e-02\n",
+       "beds_na                                        -4.153912e-02\n",
+       "Name: label_price, dtype: float64"
+      ]
+     },
+     "execution_count": 57,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "corrs = df.corr()['label_price']\n",
+    "corrs"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Task**: Sort the values of the series we just obtained in the descending order."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 58,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "corrs_sorted = corrs.sort_values(ascending=False)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Task**: In the code cell below, save the *column names* for the top-2 correlation values to the list `top_two_corr` (not counting the correlation of `label` column with itself, nor the `price` column -- which is the `label` column prior to outlier removal). Add the column names to the list in the order in which they appear in the output above. <br>\n",
+    "Tip: `corrs_sorted` is a Pandas `Series` object, in which column names are the *index*."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 68,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "top_two_corr = corrs_sorted.head(2).index.tolist()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Part 6. Produce Bivariate Plots for the Label and Its Top Correlates"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "We will use the `pairplot()` function in `seaborn` to plot the relationships between the two features we identified and the label."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Task**: Create a DataFrame `df_sub` that contains only the selected three columns: the label, and the two columns which correlate with it the most."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 61,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": [
+    "top_two_corr.append('label_price')\n",
+    "df_sub = df.loc[:, top_two_corr]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Task**: Create a `seaborn` pairplot of the data subset you just created"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": [
+    "# i'm going to cry"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "This one is not very easy to make sense of: the points overlap, but we do not have visibility into how densely they are stacked together.\n",
+    "<br>\n",
+    "\n",
+    "**Task**: Repeat the `pairplot` exercise, this time specifying the *kernel density estimator* as the *kind* of the plot.<br>\n",
+    "    Tip: use `kind = 'kde'` as a parameter of the `pairplot()` function. You could also specify `corner=True` to make sure you don't plot redundant (symmetrical) plots.\n",
+    "   <br>\n",
+    "   Note: this one may take a while!"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 67,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": [
+    "# YOUR CODE HERE"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "<b>Analysis:</b> Think about the possible interpretations of these plots. (Recall that our label encodes the listing price). <br>\n",
+    "What kind of stories does this data seem to be telling? Is the relationship what you thought it would be? Is there anything surprising or, on the contrary, reassuring about the plots?<br>\n",
+    "For example, how would you explain the relationship between the label and 'accommodates'? Is there a slight tilt to the points cluster, as the price goes up?<br>\n",
+    "What other patterns do you observe?"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "<Double click this Markdown cell to make it editable, and record your findings here.>"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.6.9"
+  },
+  "toc": {
+   "base_numbering": 1,
+   "nav_menu": {},
+   "number_sections": false,
+   "sideBar": true,
+   "skip_h1_title": false,
+   "title_cell": "Table of Contents",
+   "title_sidebar": "Contents",
+   "toc_cell": false,
+   "toc_position": {},
+   "toc_section_display": true,
+   "toc_window_display": false
+  },
+  "varInspector": {
+   "cols": {
+    "lenName": 16,
+    "lenType": 16,
+    "lenVar": 40
+   },
+   "kernels_config": {
+    "python": {
+     "delete_cmd_postfix": "",
+     "delete_cmd_prefix": "del ",
+     "library": "var_list.py",
+     "varRefreshCmd": "print(var_dic_list())"
+    },
+    "r": {
+     "delete_cmd_postfix": ") ",
+     "delete_cmd_prefix": "rm(",
+     "library": "var_list.r",
+     "varRefreshCmd": "cat(var_dic_list()) "
+    }
+   },
+   "types_to_exclude": [
+    "module",
+    "function",
+    "builtin_function_or_method",
+    "instance",
+    "_Feature"
+   ],
+   "window_display": false
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
